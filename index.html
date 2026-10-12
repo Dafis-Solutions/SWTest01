@@ -3,760 +3,643 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DAFIS SOLUTIONS - Facture</title>
+    <title id="documentTitle">DAFIS SOLUTIONS - Facture PROFORMA</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
+        :root {
+            --color-primary: #1f2937;
+            --color-accent: #dc2626;
+            --color-accent-light: #fef2f2;
+        }
+
         @media print {
-            body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 0 !important; }
+            @page { size: A4 portrait; margin: 0; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+            html, body { background: white !important; margin: 0 !important; padding: 0 !important; width: 210mm !important; height: auto !important; }
             .no-print { display: none !important; }
-            @page { size: A4; margin: 0; }
-            #invoice-container { box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; height: auto !important; min-height: auto !important; page-break-after: avoid; }
-            .print-flex-row { flex-direction: row !important; }
-            .print-w-7-12 { width: 58.333333% !important; }
-            .print-w-5-12 { width: 41.666667% !important; }
-            .print-items-end { items-end !important; }
-            .print-text-right { text-align: right !important; }
-        }
-        
-        .a4-sheet {
-            width: 100%;
-            max-width: 210mm;
-            background: white;
-            margin: 0 auto;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        }
-        
-        @media (min-width: 768px) {
-            .a4-sheet {
-                min-height: 297mm;
+            .wrapper-scroll { overflow: visible !important; padding: 0 !important; width: 100% !important; display: block !important; }
+            .invoice-wrapper { width: 210mm !important; max-width: 210mm !important; box-shadow: none !important; margin: 0 !important; border: none !important; }
+            #invoice-container { box-shadow: none !important; margin: 0 !important; width: 210mm !important; }
+            
+            .page-a4 { 
+                width: 210mm !important; 
+                height: 296mm !important; 
+                max-height: 296mm !important;
+                min-height: auto !important;
+                padding: 15mm !important; 
+                box-sizing: border-box !important; 
+                page-break-after: always !important; 
+                break-after: always !important; 
+                position: relative !important; 
+                overflow: hidden !important; 
             }
+            .page-a4:last-child { page-break-after: avoid !important; break-after: avoid !important; }
+            
+            .page-divider { display: none !important; }
+            input, textarea { border: none !important; background: transparent !important; resize: none !important; -webkit-appearance: none !important; box-shadow: none !important; }
+            .watermark-proforma { opacity: 0.06 !important; }
+
+            #invoiceTitle { 
+                font-size: 26px !important; 
+                letter-spacing: 0.1em !important;
+            }
+        }
+
+        .invoice-wrapper { width: 794px; min-width: 794px; background: white; margin: 0 auto; box-shadow: 0 15px 35px rgba(0,0,0,0.15); box-sizing: border-box; flex-shrink: 0; }
+        .page-a4 { width: 100%; min-height: 1123px; padding: 15mm; box-sizing: border-box; display: flex; flex-direction: column; background-color: white; position: relative; overflow: hidden; }
+
+        @media screen {
+            .page-divider { border-top: 2px dashed #cbd5e1; width: 100%; position: relative; background-color: #e5e7eb; height: 10px; }
         }
 
         input, textarea { background: transparent; outline: none; }
         textarea { resize: none; overflow: hidden; }
-        
-        .table-container {
-            width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+        .wrapper-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 1rem; }
+
+        /* Watermark PROFORMA / FACTURE */
+        .watermark-proforma {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-35deg);
+            font-size: 110px;
+            font-weight: 900;
+            color: #dc2626;
+            opacity: 0.04;
+            pointer-events: none;
+            user-select: none;
+            white-space: nowrap;
+            letter-spacing: 0.15em;
+            z-index: 0;
         }
 
-        .status-badge {
-            padding: 4px 8px;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: bold;
-        }
-        .status-paid { background-color: #dcfce7; color: #166534; }
-        .status-unpaid { background-color: #fee2e2; color: #991b1b; }
+        /* Color picker swatch */
+        .color-swatch { width: 22px; height: 22px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color .15s; }
+        .color-swatch:hover, .color-swatch.active { border-color: white; outline: 2px solid #6b7280; }
+
+        /* Status badge */
+        .status-paid { background:#d1fae5; color:#065f46; }
+        .status-unpaid { background:#fee2e2; color:#991b1b; }
+        .status-pending { background:#fef3c7; color:#92400e; }
+        .status-cancelled { background:#f3f4f6; color:#6b7280; }
+
+        /* Modal transition */
+        .modal-enter { animation: fadeIn .2s ease; }
+        @keyframes fadeIn { from { opacity:0; transform:scale(.97); } to { opacity:1; transform:scale(1); } }
+
+        /* Preview overlay */
+        #previewModal .page-a4 { transform-origin: top center; pointer-events: none; }
     </style>
 </head>
-<body class="bg-gray-100 py-4 md:py-8 font-sans text-gray-900 flex flex-col items-center px-2 md:px-0" onload="initApp()">
+<body class="bg-gray-200 py-4 font-sans text-gray-900 flex flex-col items-center" onload="initApp()">
 
-    <!-- Control Bar (No Print) -->
-    <div class="no-print bg-white p-3 md:p-4 rounded-xl shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center w-full max-w-4xl justify-between border border-gray-200 sticky top-2 md:top-4 z-40">
-        <div class="flex flex-wrap gap-2 justify-center w-full md:w-auto">
-             <button onclick="saveCurrentInvoice()" class="flex-1 md:flex-none items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 md:py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm md:text-base">
+    <input type="file" id="backupFileInput" accept=".json" class="hidden" onchange="handleImport(event)">
+
+    <div class="no-print bg-white p-3 rounded-xl shadow-md mb-5 flex flex-col xl:flex-row gap-3 items-center w-[95%] max-w-7xl justify-between border border-gray-300 sticky top-3 z-40">
+        
+        <div class="flex flex-wrap gap-2 justify-center w-full xl:w-auto">
+            <button onclick="saveCurrentInvoice()" class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg font-bold shadow-sm transition-transform active:scale-95 text-sm">
                 <i class="fas fa-save"></i> حفظ
             </button>
-            <button onclick="toggleHistory(true)" class="flex-1 md:flex-none items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 md:py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm md:text-base">
+            <button onclick="toggleHistory(true)" class="flex items-center gap-1.5 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg font-bold shadow-sm transition-transform active:scale-95 text-sm">
                 <i class="fas fa-history"></i> السجل
             </button>
-            <button onclick="toggleCatalog(true)" class="flex-1 md:flex-none items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 md:py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm md:text-base">
+            <button onclick="toggleCatalog(true)" class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-bold shadow-sm transition-transform active:scale-95 text-sm">
                 <i class="fas fa-database"></i> الكتالوج
             </button>
-            <button onclick="addInvoiceItem()" class="flex-1 md:flex-none items-center justify-center gap-2 bg-gray-800 hover:bg-gray-900 text-white px-3 py-2 md:py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm md:text-base">
-                <i class="fas fa-plus"></i> سطر جديد
+            <button onclick="addInvoiceItem()" class="flex items-center gap-1.5 bg-gray-800 hover:bg-gray-900 text-white px-3 py-2 rounded-lg font-bold shadow-sm transition-transform active:scale-95 text-sm">
+                <i class="fas fa-plus"></i> سطر
             </button>
-            <button onclick="resetInvoiceForm()" class="flex-1 md:flex-none items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 md:py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm md:text-base" title="فاتورة جديدة">
+            <button onclick="duplicateCurrentInvoice()" class="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white px-3 py-2 rounded-lg font-bold shadow-sm transition-transform active:scale-95 text-sm" title="نسخ الفاتورة الحالية">
+                <i class="fas fa-copy"></i> نسخ
+            </button>
+            <button onclick="toggleInvoiceType()" id="typeToggleBtn" class="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-lg font-bold shadow-sm transition-transform active:scale-95 text-sm" title="التحويل بين فاتورة شكلية وفاتورة عادية">
+                <i class="fas fa-exchange-alt"></i> Proforma / Facture
+            </button>
+            <button onclick="resetInvoiceForm()" class="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg font-bold shadow-sm transition-transform active:scale-95 text-sm">
                 <i class="fas fa-redo"></i> تفريغ
             </button>
         </div>
 
-        <div class="flex flex-wrap gap-2 justify-center w-full md:w-auto items-center">
-            <div class="flex gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-200 h-[40px] md:h-[44px]" dir="rtl">
-                <label class="font-semibold text-gray-700 text-xs md:text-sm">TVA (%):</label>
-                <input type="number" id="tvaInput" value="19" oninput="calculateTotals()" class="w-12 md:w-16 border-b border-gray-300 text-center font-bold text-red-600 focus:border-red-500 bg-transparent">
+        <div class="flex flex-wrap gap-2 justify-center items-center">
+            
+            <div id="profitBadgeContainer" class="flex items-center gap-1.5 bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-lg border border-emerald-200" title="الفائدة الصافية من الفاتورة الحالية (لا تظهر في الطباعة)">
+                <i class="fas fa-chart-line text-emerald-600"></i>
+                <span class="text-[11px] font-bold" dir="rtl">الفائدة:</span>
+                <span id="invoiceProfitDisplay" class="font-black text-sm" dir="ltr">0 DA</span>
             </div>
-            <button onclick="downloadPDF()" class="flex-1 md:flex-none items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-2 md:py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm md:text-base">
-                <i class="fas fa-download"></i> PDF
+
+            <div class="h-6 w-px bg-gray-300 mx-1" id="profitDivider"></div>
+
+            <div class="flex gap-2 border-r border-gray-300 pr-3">
+                <label class="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-gray-700 bg-white px-2.5 py-1.5 rounded-md border border-gray-300 hover:bg-gray-100" dir="rtl">
+                    <input type="checkbox" id="toggleTva" checked onchange="calculateTotals()" class="w-3.5 h-3.5 accent-blue-600"> TVA
+                </label>
+                <label class="flex items-center gap-1.5 cursor-pointer text-xs font-bold text-gray-700 bg-white px-2.5 py-1.5 rounded-md border border-gray-300 hover:bg-gray-100" dir="rtl">
+                    <input type="checkbox" id="toggleVersement" checked onchange="calculateTotals()" class="w-3.5 h-3.5 accent-red-600"> Versement
+                </label>
+            </div>
+
+            <div class="flex items-center gap-1.5 border-r border-gray-300 pr-3" title="لون الفاتورة">
+                <span class="text-xs font-bold text-gray-500">🎨</span>
+                <div id="colorSwatches" class="flex gap-1"></div>
+            </div>
+
+            <select id="currencySelect" onchange="updateCurrency()" class="text-xs font-bold border border-gray-300 rounded px-2 py-1.5 bg-white text-gray-700 outline-none border-r border-gray-300 mr-1">
+                <option value="DA">DA</option>
+                <option value="EUR">EUR</option>
+                <option value="USD">USD</option>
+            </select>
+
+            <!-- زر تسجيل الدخول للمسؤول -->
+            <button id="authBtn" onclick="toggleAuth()" class="text-gray-500 hover:text-gray-800 font-bold px-1.5 text-xs flex items-center gap-1 border-r border-gray-300 pr-2 mr-1" title="دخول المسؤول">
+                <i class="fas fa-lock"></i>
             </button>
-            <button onclick="window.print()" class="flex-1 md:flex-none items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 md:py-2.5 rounded-lg font-medium transition-colors shadow-sm text-sm md:text-base hidden md:flex">
+
+            <button onclick="exportData()" class="text-indigo-600 hover:text-indigo-800 font-bold px-1.5 text-xs flex items-center gap-1" title="تصدير JSON">
+                <i class="fas fa-cloud-download-alt text-sm"></i> Backup
+            </button>
+            <button onclick="document.getElementById('backupFileInput').click()" class="text-green-600 hover:text-green-800 font-bold px-1.5 text-xs flex items-center gap-1" title="استيراد JSON">
+                <i class="fas fa-cloud-upload-alt text-sm"></i> Importer
+            </button>
+
+            <div class="h-6 w-px bg-gray-300 mx-1"></div>
+
+            <button onclick="openPreview()" class="flex items-center gap-1.5 bg-sky-600 hover:bg-sky-700 text-white px-3 py-2 rounded-lg font-bold shadow-sm transition-transform active:scale-95 text-sm">
+                <i class="fas fa-eye"></i> Aperçu
+            </button>
+            <button onclick="downloadWord()" class="flex items-center gap-1.5 bg-blue-700 hover:bg-blue-800 text-white px-3.5 py-2 rounded-lg font-bold shadow-md transition-transform active:scale-95 text-sm">
+                <i class="fas fa-file-word"></i> Word
+            </button>
+            <button onclick="downloadPDF()" class="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-black shadow-md transition-transform active:scale-95 text-base">
+                <i class="fas fa-file-pdf"></i> PDF
+            </button>
+            <button onclick="window.print()" class="flex items-center gap-1.5 bg-gray-800 hover:bg-black text-white px-3 py-2 rounded-lg font-bold shadow-md transition-transform active:scale-95 text-sm">
                 <i class="fas fa-print"></i> طباعة
             </button>
         </div>
     </div>
 
-    <!-- Invoice History Modal -->
-    <div id="historyModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden no-print overflow-y-auto">
-        <div class="flex items-center justify-center min-h-screen p-2 md:p-4">
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div class="bg-purple-800 text-white px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
-                    <h2 class="text-lg md:text-xl font-bold flex items-center gap-2" dir="rtl">
-                        <i class="fas fa-history"></i> سجل الفواتير المحفوظة
-                    </h2>
-                    <button onclick="toggleHistory(false)" class="text-gray-300 hover:text-white text-xl p-1">
-                        <i class="fas fa-times"></i>
-                    </button>
+    <div class="wrapper-scroll print-container flex justify-center">
+        <div class="invoice-wrapper" id="invoice-container">
+
+            <div class="page-a4">
+                <div class="absolute inset-0 opacity-[0.025] pointer-events-none flex items-center justify-center z-0">
+                    <i class="fas fa-shield-alt text-[380px] text-gray-800"></i>
                 </div>
-                <div class="p-3 md:p-6 overflow-y-auto flex-1 bg-gray-50" dir="rtl">
-                    <div class="flex flex-wrap gap-4 mb-6">
-                        <div class="flex-1 bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
-                            <div class="text-sm text-gray-500 font-bold mb-1">إجمالي الفواتير</div>
-                            <div class="text-2xl font-black text-purple-600" id="statTotalInvoices">0</div>
+                <div class="watermark-proforma" id="watermarkP1">PROFORMA</div>
+
+                <div class="relative z-10 flex flex-col flex-1">
+
+                    <div class="flex justify-between border-b-[3px] border-gray-800 pb-5 mb-5" id="header-p1">
+                        <div class="flex flex-col w-[55%]">
+                            <img src="logo.jpg" alt="DAFIS Solutions" class="w-44 h-auto object-contain mb-3"
+                                 onerror="this.onerror=null;this.src='https://placehold.co/240x75/ffffff/e50000?text=DAFIS+SOLUTIONS';"/>
+                            <div class="text-gray-700 font-bold text-[11.5px] flex flex-col gap-1">
+                                <div class="flex items-center gap-2"><i class="fas fa-check-circle text-red-600"></i> AGRÉE PAR L'ÉTAT</div>
+                                <div class="flex items-center gap-2"><i class="fas fa-video text-red-600"></i> Solutions de Télésurveillance & Réseaux</div>
+                            </div>
                         </div>
-                        <div class="flex-1 bg-white p-4 rounded-lg shadow-sm border border-gray-200 text-center">
-                            <div class="text-sm text-gray-500 font-bold mb-1">إجمالي التحصيل (المدفوع)</div>
-                            <div class="text-2xl font-black text-emerald-600" id="statTotalRevenue">0 DA</div>
+
+                        <div class="flex flex-col items-end w-[45%]" style="min-width:230px;">
+                            <h1 id="invoiceTitle" class="font-black text-gray-900 uppercase tracking-widest mb-3 whitespace-nowrap" style="font-size:clamp(15px,2.2vw,26px);letter-spacing:.1em;">FACTURE PROFORMA</h1>
+                            <div class="flex flex-col w-full max-w-[220px] gap-2 mb-3">
+                                <div class="flex justify-between items-center border-b border-gray-300 pb-1">
+                                    <span class="font-bold text-gray-500 text-[10.5px] uppercase tracking-wider">N°</span>
+                                    <input type="text" id="invoiceNum" value="2026/001" oninput="syncInvoiceData()" class="text-right font-black text-red-600 text-[15px] bg-transparent outline-none w-28">
+                                </div>
+                                <div class="flex justify-between items-center border-b border-gray-300 pb-1">
+                                    <span class="font-bold text-gray-500 text-[10.5px] uppercase tracking-wider">DATE</span>
+                                    <input type="text" id="invoiceDate" oninput="syncInvoiceData()" class="text-right font-black text-gray-800 text-[12px] bg-transparent outline-none w-28">
+                                </div>
+                            </div>
+                            <div id="qrcode-p1" class="mt-1"></div>
                         </div>
                     </div>
 
-                    <div class="table-container bg-white border border-gray-200 rounded-lg shadow-sm" dir="ltr">
-                        <table class="w-full text-left text-xs md:text-sm min-w-[600px]">
-                            <thead class="bg-gray-100 border-b border-gray-200">
-                                <tr>
-                                    <th class="py-2 px-3 font-semibold text-gray-600">N° Facture</th>
-                                    <th class="py-2 px-3 font-semibold text-gray-600">Date</th>
-                                    <th class="py-2 px-3 font-semibold text-gray-600">Client</th>
-                                    <th class="py-2 px-3 font-semibold text-gray-600 text-right">Total TTC</th>
-                                    <th class="py-2 px-3 font-semibold text-gray-600 text-center">Statut</th>
-                                    <th class="py-2 px-3 font-semibold text-gray-600 text-center">Actions</th>
+                    <div class="bg-gray-50 p-3 rounded border border-gray-300 mb-5 grid grid-cols-2 gap-x-4 gap-y-2">
+                        <div class="col-span-2 flex items-center gap-2 border-b border-gray-200 pb-2 mb-1">
+                            <span class="font-black text-gray-800 text-[12px] whitespace-nowrap"><i class="fas fa-user-tie text-red-600 mr-1"></i> CLIENT :</span>
+                            <input type="text" id="clientName" list="clientsDatalist" placeholder="Nom du client / Entreprise..." class="flex-1 font-bold text-[14px] text-gray-900 bg-transparent px-2 border-b border-dashed border-gray-400 focus:border-red-600">
+                            <datalist id="clientsDatalist"></datalist>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-gray-500 font-bold text-[11px] w-14 shrink-0">Adresse :</span>
+                            <input type="text" id="clientAddress" placeholder="Adresse..." class="flex-1 font-bold text-[11px] text-gray-700 bg-transparent border-b border-dashed border-gray-300 focus:border-red-500 pb-0.5">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-gray-500 font-bold text-[11px] w-14 shrink-0">Tél :</span>
+                            <input type="text" id="clientPhone" placeholder="N° téléphone..." class="flex-1 font-bold text-[11px] text-gray-700 bg-transparent border-b border-dashed border-gray-300 focus:border-red-500 pb-0.5">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-gray-500 font-bold text-[11px] w-14 shrink-0">NIF :</span>
+                            <input type="text" id="clientNif" placeholder="NIF..." class="flex-1 font-bold text-[11px] text-gray-700 bg-transparent border-b border-dashed border-gray-300 focus:border-red-500 pb-0.5">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-gray-500 font-bold text-[11px] w-14 shrink-0">RC :</span>
+                            <input type="text" id="clientRc" placeholder="Registre du Commerce..." class="flex-1 font-bold text-[11px] text-gray-700 bg-transparent border-b border-dashed border-gray-300 focus:border-red-500 pb-0.5">
+                        </div>
+                    </div>
+
+                    <div class="flex-1">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr id="tableHead" class="bg-gray-800 text-white text-[11.5px] uppercase tracking-wider">
+                                    <th class="py-2.5 px-3 font-bold border border-gray-800 w-[52%]">Désignation</th>
+                                    <th class="py-2.5 px-2 font-bold border border-gray-800 text-center w-[9%]">Qté</th>
+                                    <th class="py-2.5 px-2 font-bold border border-gray-800 text-center w-[17%]">P.U (<span id="thCurrency">DA</span>)</th>
+                                    <th class="py-2.5 px-3 font-bold border border-gray-800 text-right w-[22%]">Montant</th>
+                                    <th class="no-print w-8 border border-gray-800"></th>
                                 </tr>
                             </thead>
-                            <tbody id="historyTableBody"></tbody>
+                            <tbody id="invoiceTableBody"></tbody>
                         </table>
+                        <datalist id="catalogDatalist"></datalist>
+                    </div>
+
+                    <div class="mt-auto pt-3 text-center text-[9.5px] text-gray-400 font-bold uppercase tracking-widest border-t border-gray-200">
+                        Page 1 / 2 — La suite au verso
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Catalog Modal -->
-    <div id="catalogModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden no-print overflow-y-auto">
-        <div class="flex items-center justify-center min-h-screen p-2 md:p-4">
-            <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                <div class="bg-gray-800 text-white px-4 md:px-6 py-3 md:py-4 flex justify-between items-center">
-                    <h2 class="text-lg md:text-xl font-bold flex items-center gap-2">
-                        <i class="fas fa-database"></i> الكتالوج
-                    </h2>
-                    <button onclick="toggleCatalog(false)" class="text-gray-300 hover:text-white text-xl p-1">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="p-3 md:p-6 overflow-y-auto flex-1 bg-gray-50" dir="rtl">
-                    <div class="bg-white p-3 md:p-4 rounded-lg border border-gray-200 mb-4 md:mb-6 shadow-sm">
-                        <h3 id="formTitle" class="text-sm font-bold text-gray-700 mb-2 md:mb-3">إضافة سلعة:</h3>
-                        <div class="flex flex-col md:flex-row gap-2 md:gap-3">
-                            <input type="text" id="newCatName" placeholder="Désignation..." class="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:border-blue-500 w-full" dir="ltr">
-                            <div class="flex gap-2">
-                                <input type="number" id="newCatPrice" placeholder="Prix..." class="flex-1 md:w-32 border border-gray-300 rounded-md px-3 py-2 text-sm focus:border-blue-500" dir="ltr">
-                                <button id="btnSaveCatalog" onclick="saveOrUpdateCatalog()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium text-sm transition-colors whitespace-nowrap">
-                                    حفظ
-                                </button>
-                                <button id="btnCancelEdit" onclick="cancelEdit()" class="hidden bg-gray-300 hover:bg-gray-400 text-gray-800 px-3 py-2 rounded-md font-medium text-sm transition-colors whitespace-nowrap">
-                                    إلغاء
-                                </button>
+            <div class="html2pdf__page-break page-divider"></div>
+
+            <div class="page-a4">
+                <div class="watermark-proforma" id="watermarkP2">PROFORMA</div>
+
+                <div class="relative z-10 flex flex-col h-full">
+
+                    <div class="flex justify-between items-center border-b-[3px] border-gray-800 pb-4 mb-6">
+                        <div class="flex items-center gap-3">
+                            <img src="logo.jpg" alt="DAFIS Solutions" class="w-32 h-auto object-contain"
+                                 onerror="this.onerror=null;this.src='https://placehold.co/160x50/ffffff/e50000?text=DAFIS+SOLUTIONS';"/>
+                            <div class="text-gray-600 font-bold text-[10.5px] flex flex-col gap-0.5">
+                                <div><i class="fas fa-check-circle text-red-600 mr-1"></i> AGRÉE PAR L'ÉTAT</div>
+                                <div><i class="fas fa-video text-red-600 mr-1"></i> Télésurveillance & Réseaux</div>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="text-[11px] font-black text-gray-500 uppercase tracking-widest" id="subTitleP2">FACTURE PROFORMA <span class="text-gray-400 font-normal">(Suite)</span></span>
+                            <div class="text-[11.5px] font-bold text-gray-600 flex items-center gap-2">
+                                N° <span id="syncNumDisplay" class="text-red-600 font-black text-[13px]">2026/001</span>
+                                <span class="text-gray-300">|</span>
+                                Date : <span id="syncDateDisplay" class="text-gray-800"></span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="table-container bg-white border border-gray-200 rounded-lg shadow-sm" dir="ltr">
-                        <table class="w-full text-left text-xs md:text-sm min-w-[400px]">
-                            <thead class="bg-gray-100 border-b border-gray-200 select-none">
-                                <tr>
-                                    <th onclick="sortCatalog('name')" class="py-2 px-3 md:px-4 font-semibold text-gray-600 cursor-pointer hover:bg-gray-200 transition-colors">
-                                        Désignation <i id="sortIconName" class="fas fa-sort ml-1 text-gray-400"></i>
-                                    </th>
-                                    <th onclick="sortCatalog('price')" class="py-2 px-3 md:px-4 font-semibold text-gray-600 cursor-pointer hover:bg-gray-200 transition-colors">
-                                        Prix (DA) <i id="sortIconPrice" class="fas fa-sort ml-1 text-gray-400"></i>
-                                    </th>
-                                    <th class="py-2 px-3 md:px-4 font-semibold text-gray-600 text-center">Actions</th>
+                    <div class="flex justify-between items-start gap-6">
+
+                        <div class="w-[55%] flex flex-col gap-4">
+
+                            <div class="border border-gray-300 p-3.5 rounded-lg bg-gray-50 shadow-sm">
+                                <h3 class="font-bold text-gray-800 mb-2 border-b border-gray-200 pb-1.5 text-[12px]"><i class="fas fa-plus-circle text-orange-500 mr-1"></i> Frais supplémentaires :</h3>
+                                <div id="extraChargesContainer" class="flex flex-col gap-1.5"></div>
+                                <button onclick="addExtraCharge()" class="no-print mt-2 text-[11px] font-bold text-orange-600 hover:text-orange-800 flex items-center gap-1">
+                                    <i class="fas fa-plus"></i> Ajouter un frais
+                                </button>
+                            </div>
+
+                            <div class="border border-gray-300 p-3.5 rounded-lg bg-gray-50 shadow-sm">
+                                <h3 class="font-bold text-gray-800 mb-2 border-b border-gray-200 pb-1.5 text-[12px] flex justify-between items-center">
+                                    <span><i class="fas fa-info-circle text-blue-600 mr-1"></i> Notes / Remarques :</span>
+                                    <button id="btn-generate-notes" onclick="autoGenerateNotes()" class="no-print bg-purple-100 hover:bg-purple-200 text-purple-700 px-2 py-0.5 rounded text-[10.5px] font-bold">✨ IA</button>
+                                </h3>
+                                <textarea id="invoiceNotes" class="w-full text-gray-700 text-[11.5px] bg-transparent leading-relaxed border-none outline-none" rows="3">Consommation de cable COX : 100 DA par 1m&#10;Consommation de cable reseau : 180 DA par 1m</textarea>
+                            </div>
+
+                            <div class="border border-gray-300 p-3.5 rounded-lg shadow-sm">
+                                <h3 class="font-bold text-gray-800 mb-2 border-b border-gray-200 pb-1.5 text-[12px]"><i class="fas fa-university text-green-600 mr-1"></i> Coordonnées Bancaires :</h3>
+                                <div class="flex items-center mb-1.5">
+                                    <span class="w-24 text-gray-500 font-bold text-[11px]">Nom :</span>
+                                    <input type="text" placeholder="Nom du compte..." class="flex-1 border-b border-gray-200 font-bold text-gray-800 text-[11px] bg-transparent pb-0.5">
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="w-24 text-gray-500 font-bold text-[11px]">N° compte :</span>
+                                    <input type="text" placeholder="RIB / Numéro..." class="flex-1 border-b border-gray-200 font-black text-gray-900 text-[12px] tracking-widest bg-transparent pb-0.5">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="w-[45%] border-2 border-gray-800 rounded-lg overflow-hidden shrink-0 shadow-md">
+                            <table class="w-full text-[13px]">
+                                <tr class="border-b border-gray-300">
+                                    <td class="p-3 font-bold text-gray-700 bg-gray-100 w-[48%]">SOUS-TOTAL</td>
+                                    <td class="p-3 font-black text-right text-gray-900" id="valSousTotal">0 <span class="currency-label">DA</span></td>
                                 </tr>
-                            </thead>
-                            <tbody id="catalogTableBody"></tbody>
-                        </table>
+                                <tr class="border-b border-gray-300" id="rowFrais" style="display:none;">
+                                    <td class="p-3 font-bold text-gray-700 bg-gray-100">FRAIS SUPP.</td>
+                                    <td class="p-3 font-black text-right text-orange-700" id="valFrais">0 <span class="currency-label">DA</span></td>
+                                </tr>
+                                <tr class="border-b border-gray-300" id="rowTva">
+                                    <td class="p-3 font-bold text-gray-700 bg-gray-100">
+                                        <div class="flex items-center justify-between">
+                                            <span>TVA</span>
+                                            <div class="flex items-center">
+                                                <input type="number" id="tvaInput" value="19" oninput="calculateTotals(false)" class="w-11 bg-white border border-gray-300 rounded text-center text-red-600 text-[11px] py-0.5 ml-1">%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="p-3 text-right bg-red-50/30">
+                                        <div class="flex justify-end items-center font-bold text-gray-900">
+                                            <input type="number" id="valTvaAmount" oninput="calculateTotals(true)" class="w-24 text-right bg-transparent border-b border-dashed border-red-300 focus:border-red-600 mr-1 text-[13px]" value="0">
+                                            <span class="currency-label">DA</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="border-b border-gray-300" id="rowVersement">
+                                    <td class="p-3 font-bold text-gray-700 bg-gray-100">VERSEMENT</td>
+                                    <td class="p-3 text-right bg-green-50/30">
+                                        <div class="flex justify-end items-center font-bold text-gray-900">
+                                            <input type="number" id="versementInput" value="0" oninput="calculateTotals()" class="w-24 text-right bg-transparent border-b border-dashed border-green-300 focus:border-green-600 mr-1 text-[13px]">
+                                            <span class="currency-label">DA</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="bg-gray-800 text-white">
+                                    <td class="p-3.5 font-black text-[15px] uppercase tracking-wide">TOTAL TTC</td>
+                                    <td class="p-3.5 font-black text-right text-[18px] text-red-400" id="valTotalTtc">0 <span class="currency-label" style="color:inherit;">DA</span></td>
+                                </tr>
+                                <tr class="bg-red-100" id="rowReste">
+                                    <td class="p-3 font-black text-red-800 uppercase text-[11px]">Reste à payer</td>
+                                    <td class="p-3 font-black text-right text-red-800 text-[15px]" id="valReste">0 <span class="currency-label">DA</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 bg-gray-50 p-3.5 rounded border border-gray-200 shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <span class="font-bold text-gray-800 text-[12px] whitespace-nowrap">Arrêtée la présente facture à la somme de :</span>
+                            <input type="text" id="amountInWords" placeholder="Écrire la somme en toutes lettres..." class="flex-1 border-b-2 border-dashed border-gray-400 font-bold text-gray-800 text-[13px] bg-transparent italic pb-1">
+                            <button id="btn-amount-words" onclick="autoFillAmountInWords()" class="no-print bg-purple-100 hover:bg-purple-200 text-purple-700 px-3 py-1.5 rounded text-[10.5px] font-bold flex items-center gap-1">✨ Auto</button>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 flex justify-between items-end">
+                        <div id="qrcode-p2" class="shrink-0"></div>
+                        <div class="text-center font-bold text-gray-600 border-b-2 border-gray-800 pb-1 px-10">Cachet & Signature</div>
+                    </div>
+
+                    <div class="mt-auto pt-4 border-t-[4px] border-gray-800 flex justify-between items-end">
+                        <div class="flex gap-4 text-3xl opacity-90" id="footerIcons">
+                            <i class="fas fa-video text-red-600"></i>
+                            <i class="fas fa-fingerprint text-red-600"></i>
+                            <i class="fas fa-headset text-red-600"></i>
+                        </div>
+                        <div class="flex flex-col items-end gap-1.5 text-[11.5px] font-bold text-gray-700">
+                            <div class="flex items-center gap-2">contact.dafisolutions@gmail.com <i class="fas fa-envelope text-red-600 w-4 text-center"></i></div>
+                            <div class="flex items-center gap-2 text-[12px]"><span class="tracking-wider">06 59 84 96 56 / 07 95 98 33 37</span> <i class="fas fa-phone-alt text-red-600 w-4 text-center"></i></div>
+                            <div class="flex items-center gap-2"><span class="text-blue-700 font-black">https://dafis-solutions.github.io/HOME/</span> <i class="fas fa-globe text-red-600 w-4 text-center"></i></div>
+                            <div class="flex items-center gap-2">Tébessa, 12004 - Algérie <i class="fas fa-map-marker-alt text-red-600 w-4 text-center"></i></div>
+                        </div>
                     </div>
                 </div>
             </div>
+
+        </div></div><div id="previewModal" class="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm hidden no-print flex items-center justify-center p-4">
+        <div class="bg-gray-100 rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[95vh]">
+            <div class="bg-gray-800 text-white px-5 py-3 flex justify-between items-center">
+                <h2 class="font-bold flex items-center gap-2"><i class="fas fa-eye"></i> Aperçu avant impression / PDF</h2>
+                <div class="flex gap-2">
+                    <button onclick="downloadPDF()" class="bg-red-600 hover:bg-red-700 px-4 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1.5"><i class="fas fa-file-pdf"></i> PDF</button>
+                    <button onclick="window.print()" class="bg-gray-600 hover:bg-gray-700 px-4 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1.5"><i class="fas fa-print"></i> طباعة</button>
+                    <button onclick="closePreview()" class="text-gray-300 hover:text-white text-xl ml-2"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+            <div class="overflow-y-auto flex-1 p-6 flex flex-col items-center gap-4" id="previewContent"></div>
         </div>
     </div>
 
-    <!-- Invoice Area -->
-    <div class="a4-sheet relative overflow-hidden text-[12px] md:text-[13px]" id="invoice-container">
-        <div class="absolute inset-0 opacity-[0.03] pointer-events-none flex items-center justify-center">
-            <i class="fas fa-shield-alt text-[200px] md:text-[400px]"></i>
-        </div>
-
-        <div class="p-4 md:p-10 relative z-10 flex flex-col h-full">
-            
-            <div class="flex flex-col md:flex-row print-flex-row justify-between border-b-2 border-red-600 pb-4 md:pb-6 mb-4 md:mb-6 gap-4">
-                
-                <div class="flex flex-col justify-between items-center md:items-start print-items-start">
-                    <img src="logo.jpg" alt="DAFIS Solutions Logo" class="w-28 md:w-36 h-auto object-contain mb-3 md:mb-4" onerror="this.onerror=null; this.src='https://placehold.co/150x150/ffffff/e50000?text=DAFIS+LOGO';"/>
-                    
-                    <div class="text-gray-600 font-semibold text-[10px] md:text-xs flex flex-col gap-1.5 items-center md:items-start print-items-start">
-                        <div class="flex items-center gap-2">
-                            <i class="fas fa-shield-alt text-red-600"></i> AGRÉE PAR L'ÉTAT
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <i class="fas fa-video text-red-600"></i> Solutions de Télésurveillance
-                        </div>
+    <div id="historyModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden no-print flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh] modal-enter">
+            <div class="bg-purple-800 text-white px-6 py-4 flex justify-between items-center">
+                <h2 class="text-lg font-bold flex items-center gap-2" dir="rtl"><i class="fas fa-history"></i> سجل الفواتير</h2>
+                <button onclick="toggleHistory(false)" class="text-gray-200 hover:text-white text-2xl"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-1 bg-gray-100" dir="rtl">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                    <div class="bg-white p-3 rounded-xl shadow border border-gray-200 text-center">
+                        <div class="text-gray-500 font-bold text-xs mb-1">إجمالي الفواتير</div>
+                        <div class="text-2xl font-black text-purple-600" id="statTotalInvoices">0</div>
+                    </div>
+                    <div class="bg-white p-3 rounded-xl shadow border border-gray-200 text-center">
+                        <div class="text-gray-500 font-bold text-xs mb-1">المدفوعة</div>
+                        <div class="text-2xl font-black text-emerald-600" id="statPaid">0</div>
+                    </div>
+                    <div class="bg-white p-3 rounded-xl shadow border border-gray-200 text-center">
+                        <div class="text-gray-500 font-bold text-xs mb-1">غير المدفوعة</div>
+                        <div class="text-2xl font-black text-red-600" id="statUnpaid">0</div>
+                    </div>
+                    <div class="bg-white p-3 rounded-xl shadow border border-gray-200 text-center">
+                        <div class="text-gray-500 font-bold text-xs mb-1">المداخيل</div>
+                        <div class="text-xl font-black text-emerald-600" id="statTotalRevenue">0 DA</div>
                     </div>
                 </div>
-
-                <div class="flex flex-col justify-between items-center md:items-end print-items-end mt-2 md:mt-0">
-                    <div class="flex flex-col items-center md:items-end print-items-end mb-4 md:mb-0">
-                        <div class="flex flex-col md:flex-row print-flex-row items-center gap-2 md:gap-4 mb-2">
-                            <h1 class="text-2xl md:text-3xl font-black text-gray-800 uppercase tracking-wider m-0 text-center md:text-right print-text-right">Facture Proforma</h1>
-                            
-                            <div class="flex items-center gap-1 bg-gray-50 border border-gray-200 px-2 md:px-3 py-1 rounded-md">
-                                <span class="font-bold text-gray-600">N°:</span>
-                                <input type="text" id="invoiceNum" value="2026/001" class="text-center border-none bg-transparent focus:outline-none w-16 md:w-20 font-black text-red-600 text-base md:text-lg p-0">
-                            </div>
-                        </div>
-                        <div class="bg-red-600 h-1 w-12 md:w-16 rounded-full hidden md:block print:block"></div>
-                    </div>
-
-                    <div class="flex items-center gap-2 md:mt-auto">
-                        <span class="font-bold text-gray-600 text-xs md:text-sm">DATE :</span>
-                        <input type="text" id="invoiceDate" class="text-center md:text-right print-text-right border-b border-dashed border-gray-400 focus:border-red-500 w-24 md:w-32 font-bold text-gray-800 bg-transparent text-sm">
-                    </div>
+                <div class="mb-3 flex gap-2" dir="ltr">
+                    <input type="text" id="historySearch" oninput="renderHistoryTable()" placeholder="🔍 Rechercher par N°, client..." class="flex-1 border-2 border-gray-300 rounded-lg px-4 py-2 font-bold text-sm focus:border-purple-500 outline-none bg-white">
+                    <select id="historyStatusFilter" onchange="renderHistoryTable()" class="border-2 border-gray-300 rounded-lg px-3 py-2 font-bold text-sm outline-none bg-white">
+                        <option value="">Tous</option>
+                        <option value="paid">Payée</option>
+                        <option value="unpaid">Non payée</option>
+                        <option value="pending">En attente</option>
+                        <option value="cancelled">Annulée</option>
+                    </select>
                 </div>
-            </div>
-
-            <div class="bg-gray-50 p-3 md:p-4 rounded-lg border border-gray-200 mb-4 md:mb-6 flex flex-col md:flex-row print-flex-row items-start md:items-center gap-2 md:gap-0">
-                <span class="font-bold text-gray-700 w-full md:w-24">CLIENT :</span>
-                <input type="text" id="clientName" placeholder="Nom du client / Entreprise..." class="w-full md:flex-1 border-b border-dashed border-gray-300 focus:border-red-500 font-bold text-sm md:text-base text-gray-900 pb-1 bg-transparent">
-            </div>
-
-            <div class="flex-1 table-container pb-2">
-                <table class="w-full text-left border-collapse min-w-[500px]">
-                    <thead>
-                        <tr class="bg-gray-800 text-white">
-                            <th class="py-2 md:py-3 px-2 md:px-4 font-bold border border-gray-800 w-6/12 md:w-7/12">DÉSIGNATION</th>
-                            <th class="py-2 md:py-3 px-2 md:px-4 font-bold border border-gray-800 text-center w-1/12">QNT</th>
-                            <th class="py-2 md:py-3 px-2 md:px-4 font-bold border border-gray-800 text-center w-2/12">P.U (DA)</th>
-                            <th class="py-2 md:py-3 px-2 md:px-4 font-bold border border-gray-800 text-right w-3/12 md:w-2/12">MONTANT</th>
-                            <th class="no-print w-8 border border-gray-800"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="invoiceTableBody">
-                        </tbody>
-                </table>
-            </div>
-
-            <div class="flex flex-col-reverse md:flex-row print-flex-row mt-4 md:mt-6 gap-4 md:gap-6 items-start">
-                
-                <div class="w-full md:w-7/12 print-w-7-12 flex flex-col gap-3 md:gap-4">
-                    <div class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg">
-                        <h3 class="font-bold text-gray-700 mb-2 border-b border-gray-200 pb-1 text-xs md:text-sm">Notes / Remarques :</h3>
-                        <textarea class="w-full text-gray-600 text-[11px] md:text-xs bg-transparent" rows="3">Consommation de cable COX : 100 DA par 1m&#10;Consommation de cable reseau : 180 DA par 1m</textarea>
-                    </div>
-
-                    <div class="border border-gray-200 p-3 md:p-4 rounded-lg">
-                        <h3 class="font-bold text-gray-700 mb-2 border-b border-gray-200 pb-1 text-xs md:text-sm">Coordonnées Bancaires :</h3>
-                        <div class="flex items-center mb-1">
-                            <span class="w-24 md:w-32 text-gray-500 font-semibold text-[10px] md:text-xs">Nom :</span>
-                            <input type="text" placeholder="Saisir le nom..." class="flex-1 border-b border-dashed border-gray-300 font-bold text-gray-800 text-[11px] md:text-xs bg-transparent">
-                        </div>
-                        <div class="flex items-center">
-                            <span class="w-24 md:w-32 text-gray-500 font-semibold text-[10px] md:text-xs">N° compte :</span>
-                            <input type="text" placeholder="Saisir RIB..." class="flex-1 border-b border-dashed border-gray-300 font-bold text-gray-800 text-[11px] md:text-xs tracking-wider bg-transparent">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="w-full md:w-5/12 print-w-5-12 border border-gray-200 rounded-lg overflow-hidden shrink-0">
-                    <table class="w-full text-xs md:text-[13px]">
-                        <tr class="border-b border-gray-200">
-                            <td class="p-2 md:p-3 font-bold text-gray-700 bg-gray-50 w-1/2">SOUS-TOTAL</td>
-                            <td class="p-2 md:p-3 font-bold text-right text-gray-900" id="valSousTotal">0 DA</td>
-                        </tr>
-                        <tr class="border-b border-gray-200" id="rowTva">
-                            <td class="p-2 md:p-3 font-bold text-gray-700 bg-gray-50">
-                                TVA <span id="lblTvaRate" class="bg-gray-200 text-gray-600 px-1 py-0.5 rounded text-[9px] md:text-[10px]">19%</span>
-                            </td>
-                            <td class="p-2 md:p-3 font-bold text-right text-gray-900" id="valTva">0 DA</td>
-                        </tr>
-                        <tr class="border-b border-gray-200">
-                            <td class="p-2 md:p-3 font-bold text-gray-700 bg-gray-50">VERSEMENT</td>
-                            <td class="p-2 md:p-3 text-right">
-                                <input type="number" id="versementInput" value="0" oninput="calculateTotals()" class="w-16 md:w-20 border-b border-dashed border-gray-400 text-right font-bold text-gray-900 pr-1 bg-transparent"> DA
-                            </td>
-                        </tr>
-                        <tr class="bg-gray-800 text-white">
-                            <td class="p-3 md:p-4 font-black text-sm md:text-base uppercase">TOTAL TTC</td>
-                            <td class="p-3 md:p-4 font-black text-right text-sm md:text-base text-red-400" id="valTotalTtc">0 DA</td>
-                        </tr>
-                        <tr class="bg-red-50" id="rowReste" style="display: none;">
-                            <td class="p-2 md:p-3 font-bold text-red-800 uppercase text-[11px] md:text-xs">Reste à payer</td>
-                            <td class="p-2 md:p-3 font-bold text-right text-red-800 text-xs md:text-sm" id="valReste">0 DA</td>
-                        </tr>
+                <div class="bg-white rounded-xl shadow overflow-x-auto" dir="ltr">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-800 text-white">
+                            <tr>
+                                <th class="py-3 px-4 font-bold">N° Facture</th>
+                                <th class="py-3 px-4 font-bold">Date</th>
+                                <th class="py-3 px-4 font-bold">Client</th>
+                                <th class="py-3 px-4 font-bold text-right">Total TTC</th>
+                                <th class="py-3 px-4 font-bold text-center">Statut</th>
+                                <th class="py-3 px-4 font-bold text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody"></tbody>
                     </table>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <div class="mt-8 md:mt-auto pt-4 md:pt-6 border-t-2 border-red-600 flex flex-col md:flex-row print-flex-row justify-between items-center bg-white gap-4 md:gap-0">
-                <div class="flex gap-3 md:gap-4 text-red-600 text-xl md:text-2xl">
-                    <i class="fas fa-video"></i>
-                    <i class="fas fa-headset"></i>
+    <div id="catalogModal" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm hidden no-print flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh] modal-enter">
+            <div class="bg-blue-800 text-white px-6 py-4 flex justify-between items-center">
+                <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-database"></i> الكتالوج وإدارة السلع</h2>
+                <button onclick="toggleCatalog(false)" class="text-gray-200 hover:text-white text-2xl"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5 overflow-y-auto flex-1 bg-gray-100" dir="rtl">
+                <div class="bg-white p-4 rounded-xl shadow mb-2 border border-gray-200">
+                    <h3 class="font-bold text-gray-800 mb-3 text-sm">إضافة سلعة جديدة:</h3>
+                    <div class="flex flex-col md:flex-row gap-3">
+                        <input type="text" id="newCatName" placeholder="Désignation..." class="flex-1 border-2 border-gray-300 rounded-lg px-4 py-2 font-bold focus:border-blue-500 outline-none" dir="ltr">
+                        <div class="flex flex-wrap gap-2">
+                            <div class="relative w-28 md:w-32" id="newPurchasePriceContainer">
+                                <span class="absolute -top-2.5 right-2 bg-white px-1 text-[10px] font-bold text-gray-500">سعر الشراء</span>
+                                <input type="number" id="newCatPurchasePrice" placeholder="0" class="w-full border-2 border-gray-300 rounded-lg px-3 py-2 font-bold focus:border-blue-500 outline-none text-left" dir="ltr">
+                            </div>
+                            <div class="relative w-28 md:w-32">
+                                <span class="absolute -top-2.5 right-2 bg-white px-1 text-[10px] font-bold text-blue-600">سعر البيع</span>
+                                <input type="number" id="newCatPrice" placeholder="0" class="w-full border-2 border-gray-300 rounded-lg px-3 py-2 font-bold focus:border-blue-500 outline-none text-left" dir="ltr">
+                            </div>
+                            <button onclick="addNewCatalogItem()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-bold flex-1 md:flex-none transition-transform active:scale-95"><i class="fas fa-plus"></i> إضافة</button>
+                        </div>
+                    </div>
                 </div>
-                
-                <div class="flex flex-col items-center md:items-end print-items-end gap-1 text-[10px] md:text-xs font-semibold text-gray-700 text-center md:text-right">
-                    <div class="flex items-center justify-center md:justify-end gap-2 w-full">
-                        <span class="hidden md:inline">contact.dafisolutions@gmail.com</span>
-                        <span class="md:hidden">contact.dafisolutions@...</span>
-                        <i class="fas fa-envelope text-red-600"></i>
+
+                <div class="flex flex-wrap gap-2 justify-between items-center mb-3 mt-4">
+                    <h3 class="font-bold text-gray-800 text-sm">قائمة السلع المتاحة:</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="sortCatalog('name')" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors">
+                            <i class="fas fa-sort-alpha-down text-blue-600"></i> ترتيب بالاسم
+                        </button>
+                        <button id="sortPurchaseBtn" onclick="sortCatalog('purchase')" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors">
+                            <i class="fas fa-sort-numeric-down text-purple-600"></i> ترتيب بسعر الشراء
+                        </button>
+                        <button onclick="sortCatalog('price')" class="bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors">
+                            <i class="fas fa-sort-numeric-down text-emerald-600"></i> ترتيب بسعر البيع
+                        </button>
                     </div>
-                    <div class="flex items-center justify-center md:justify-end gap-2 w-full">
-                        06 59 84 96 56 / 07 95 98 33 37 <i class="fas fa-phone text-red-600"></i>
-                    </div>
-                    <div class="flex items-center justify-center md:justify-end gap-2 w-full">
-                        <a href="https://dafis-solutions.github.io/HOME/" target="_blank" class="hover:text-blue-600 transition-colors hidden md:inline">https://dafis-solutions.github.io/HOME/</a>
-                        <a href="https://dafis-solutions.github.io/HOME/" target="_blank" class="hover:text-blue-600 transition-colors md:hidden">Site Web Officiel</a>
-                        <i class="fas fa-globe text-red-600"></i>
-                    </div>
-                    <div class="flex items-center justify-center md:justify-end gap-2 mt-1 w-full">
-                        Tébessa, 12004 - Algérie <i class="fas fa-map-marker-alt text-red-600"></i>
-                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow overflow-x-auto border border-gray-200" dir="ltr">
+                    <table class="w-full text-left text-sm min-w-[700px]">
+                        <thead class="bg-gray-800 text-white">
+                            <tr>
+                                <th class="py-3 px-4 font-bold w-[35%]">Désignation</th>
+                                <th id="catThPurch" class="py-3 px-4 font-bold text-gray-300">Achat (شراء)</th>
+                                <th class="py-3 px-4 font-bold text-blue-300">Vente (بيع)</th>
+                                <th id="catThProf" class="py-3 px-4 font-bold text-emerald-400">Bénéfice (فائدة)</th>
+                                <th class="py-3 px-4 font-bold text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="catalogTableBody"></tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
+
     <script>
-        let invoiceItems = [];
-        let catalogItems = [];
-        let savedInvoices = [];
-        let editingCatId = null;
-        let currentSort = { column: null, asc: true };
+        // ─── State ───────────────────────────────────────────────────────────
+        let isAdmin = sessionStorage.getItem('dafis_admin') === 'true'; // Auth State
+        let invoiceItems   = [];
+        let extraCharges   = [];   // {id, label, amount}
+        let catalogItems   = [];
+        let savedInvoices  = [];
+        let clientsList    = [];
+        let inlineEditId   = null; 
         let currentTotalTTC = 0;
+        let currentCurrency = 'DA';
+        let isProforma     = true; // Type toggle state
+        let catalogSortOrder = { name: 1, price: 1, purchase: 1 }; 
 
+        // Color themes: [headerBg, accentText, buttonClass]
+        const COLOR_THEMES = {
+            gray:   { bg: '#1f2937', accent: '#dc2626', label: 'Gris' },
+            blue:   { bg: '#1e3a5f', accent: '#3b82f6', label: 'Bleu' },
+            green:  { bg: '#14532d', accent: '#16a34a', label: 'Vert' },
+            purple: { bg: '#3b0764', accent: '#9333ea', label: 'Violet' },
+            brown:  { bg: '#44200a', accent: '#d97706', label: 'Marron' },
+        };
+        let activeTheme = 'gray';
+
+        // ─── Init ─────────────────────────────────────────────────────────────
         function initApp() {
-            const today = new Date().toLocaleDateString('fr-FR');
-            document.getElementById('invoiceDate').value = today;
-
-            const savedCatalog = localStorage.getItem('dafis_catalog');
-            if (savedCatalog) {
-                catalogItems = JSON.parse(savedCatalog);
-            } else {
-                catalogItems = [
-                    { id: Date.now()+1, name: 'XVR Dahua 16chaine 5Mp 13', price: 42000 },
-                    { id: Date.now()+2, name: 'Camera Dahua 5Mp Int', price: 12500 },
-                    { id: Date.now()+3, name: 'Camera Dahua 5Mp Audio', price: 13500 },
-                    { id: Date.now()+4, name: 'Bloc alimentation 18 cnx', price: 8000 },
-                    { id: Date.now()+5, name: 'HDD 4000GB', price: 26000 },
-                    { id: Date.now()+6, name: 'Cable COX (100m)', price: 30000 },
-                    { id: Date.now()+7, name: 'Armoire', price: 10000 }
-                ];
-                saveCatalog();
-            }
-
-            const loadedInvoices = localStorage.getItem('dafis_history');
-            if(loadedInvoices) {
-                savedInvoices = JSON.parse(loadedInvoices);
-            }
-            
+            document.getElementById('invoiceDate').value = new Date().toLocaleDateString('fr-FR');
+            loadData();
+            renderClientsDatalist();
             renderCatalog();
             renderInvoiceTable();
             autoIncrementInvoiceNum();
-        }
-
-        function addInvoiceItem(name = '', qty = 1, price = 0) {
-            invoiceItems.push({ id: Date.now() + Math.random(), name, qty, price });
-            renderInvoiceTable();
-        }
-
-        function removeInvoiceItem(id) {
-            invoiceItems = invoiceItems.filter(item => item.id !== id);
-            renderInvoiceTable();
-        }
-
-        function updateItem(id, field, element) {
-            const item = invoiceItems.find(i => i.id === id);
-            if(item) {
-                if (field === 'name') {
-                    item.name = element.value;
-                    element.style.height = 'auto';
-                    element.style.height = element.scrollHeight + 'px';
-                } else {
-                    item[field] = parseFloat(element.value) || 0;
-                }
-                calculateTotals();
-                
-                if(field !== 'name') {
-                    const row = element.closest('tr');
-                    const totalCell = row.querySelector('.item-total');
-                    totalCell.innerText = (item.qty * item.price).toLocaleString('fr-FR');
-                }
-            }
-        }
-
-        function renderInvoiceTable() {
-            const tbody = document.getElementById('invoiceTableBody');
-            tbody.innerHTML = '';
-
-            if(invoiceItems.length === 0) {
-                tbody.innerHTML = `<tr class="no-print"><td colspan="5" class="text-center py-6 text-gray-400 italic border border-gray-200 text-xs md:text-sm">الفاتورة فارغة. أضف سلعاً من الكتالوج أو اضغط على سطر جديد.</td></tr>`;
-            } else {
-                invoiceItems.forEach((item, index) => {
-                    const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-                    const tr = document.createElement('tr');
-                    tr.className = bgClass;
-                    tr.innerHTML = `
-                        <td class="border border-gray-200 py-1.5 md:py-2 px-2 md:px-4">
-                            <textarea rows="1" oninput="updateItem(${item.id}, 'name', this)" class="w-full font-medium text-gray-800 text-xs md:text-sm bg-transparent" placeholder="Description...">${item.name}</textarea>
-                        </td>
-                        <td class="border border-gray-200 py-1.5 md:py-2 px-1 md:px-4">
-                            <input type="number" oninput="updateItem(${item.id}, 'qty', this)" value="${item.qty}" class="w-full text-center font-semibold text-gray-800 text-xs md:text-sm bg-transparent">
-                        </td>
-                        <td class="border border-gray-200 py-1.5 md:py-2 px-1 md:px-4">
-                            <input type="number" oninput="updateItem(${item.id}, 'price', this)" value="${item.price}" class="w-full text-center font-semibold text-gray-800 text-xs md:text-sm bg-transparent">
-                        </td>
-                        <td class="border border-gray-200 py-1.5 md:py-2 px-2 md:px-4 text-right font-bold text-gray-900 bg-gray-100/50 item-total text-xs md:text-sm whitespace-nowrap">
-                            ${(item.qty * item.price).toLocaleString('fr-FR')}
-                        </td>
-                        <td class="no-print text-center px-1 md:px-2 border-b border-gray-200">
-                            <button onclick="removeInvoiceItem(${item.id})" class="text-red-500 hover:text-red-700 p-1"><i class="fas fa-trash"></i></button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                    
-                    const textarea = tr.querySelector('textarea');
-                    setTimeout(() => { textarea.style.height = textarea.scrollHeight + 'px'; }, 10);
-                });
-            }
+            syncInvoiceData();
             calculateTotals();
+            buildColorSwatches();
+            generateQR();
+            renderExtraCharges();
+            updateAuthUI(); // Apply auth restrictions on load
         }
 
-        function calculateTotals() {
-            const subTotal = invoiceItems.reduce((sum, item) => sum + (item.qty * item.price), 0);
-            const tvaRate = parseFloat(document.getElementById('tvaInput').value) || 0;
-            const versement = parseFloat(document.getElementById('versementInput').value) || 0;
+        // ─── Toggle Invoice Type (Proforma / Facture) ────────────────────────
+        function toggleInvoiceType() {
+            isProforma = !isProforma;
+            const titleEl = document.getElementById('invoiceTitle');
+            const watermarkP1 = document.getElementById('watermarkP1');
+            const watermarkP2 = document.getElementById('watermarkP2');
+            const subTitleP2 = document.getElementById('subTitleP2');
+            const docTitle = document.getElementById('documentTitle');
 
-            const tvaAmount = subTotal * (tvaRate / 100);
-            const totalTTC = subTotal + tvaAmount;
-            currentTotalTTC = totalTTC;
-            const reste = totalTTC - versement;
-
-            document.getElementById('valSousTotal').innerText = subTotal.toLocaleString('fr-FR') + ' DA';
-            document.getElementById('valTva').innerText = tvaAmount.toLocaleString('fr-FR') + ' DA';
-            document.getElementById('valTotalTtc').innerText = totalTTC.toLocaleString('fr-FR') + ' DA';
-            document.getElementById('valReste').innerText = reste.toLocaleString('fr-FR') + ' DA';
-            document.getElementById('lblTvaRate').innerText = tvaRate + '%';
-
-            document.getElementById('rowTva').style.display = tvaRate > 0 ? 'table-row' : 'none';
-            document.getElementById('rowReste').style.display = versement > 0 ? 'table-row' : 'none';
-        }
-
-        function autoIncrementInvoiceNum() {
-            const year = new Date().getFullYear();
-            const count = savedInvoices.length + 1;
-            document.getElementById('invoiceNum').value = `${year}/${String(count).padStart(3, '0')}`;
-        }
-
-        function resetInvoiceForm() {
-            if(confirm('هل تريد مسح البيانات الحالية وبدء فاتورة جديدة؟')) {
-                invoiceItems = [];
-                document.getElementById('clientName').value = '';
-                document.getElementById('versementInput').value = '0';
-                document.getElementById('invoiceDate').value = new Date().toLocaleDateString('fr-FR');
-                autoIncrementInvoiceNum();
-                renderInvoiceTable();
+            if (isProforma) {
+                titleEl.innerText = 'FACTURE PROFORMA';
+                watermarkP1.innerText = 'PROFORMA';
+                watermarkP2.innerText = 'PROFORMA';
+                subTitleP2.innerHTML = 'FACTURE PROFORMA <span class="text-gray-400 font-normal">(Suite)</span>';
+                docTitle.innerText = 'DAFIS SOLUTIONS - Facture PROFORMA';
+            } else {
+                titleEl.innerText = 'FACTURE';
+                watermarkP1.innerText = 'FACTURE';
+                watermarkP2.innerText = 'FACTURE';
+                subTitleP2.innerHTML = 'FACTURE <span class="text-gray-400 font-normal">(Suite)</span>';
+                docTitle.innerText = 'DAFIS SOLUTIONS - FACTURE';
             }
+            generateQR();
         }
 
-        function saveCurrentInvoice() {
-            const clientName = document.getElementById('clientName').value.trim();
-            const invoiceNum = document.getElementById('invoiceNum').value;
-            const date = document.getElementById('invoiceDate').value;
+        // ─── Auth (Admin Login/Logout) ────────────────────────────────────────
+        function toggleAuth() {
+            if (isAdmin) {
+                if(confirm('تسجيل الخروج من حساب المسؤول؟')) {
+                    isAdmin = false;
+                    sessionStorage.removeItem('dafis_admin');
+                    updateAuthUI();
+                }
+            } else {
+                const user = prompt('اسم المستخدم:');
+                if (user === null) return;
+                const pass = prompt('كلمة المرور:');
+                if (pass === null) return;
 
-            if(!clientName) {
-                alert('يرجى كتابة اسم العميل قبل الحفظ.');
-                return;
-            }
-            if(invoiceItems.length === 0) {
-                alert('الفاتورة فارغة. أضف سلعاً قبل الحفظ.');
-                return;
-            }
-
-            const newInvoice = {
-                id: Date.now(),
-                num: invoiceNum,
-                date: date,
-                client: clientName,
-                total: currentTotalTTC,
-                status: 'unpaid',
-                itemsSnapshot: [...invoiceItems]
-            };
-
-            const existingIndex = savedInvoices.findIndex(inv => inv.num === invoiceNum);
-            if(existingIndex !== -1) {
-                if(confirm('هذه الفاتورة موجودة مسبقاً في السجل. هل تريد تحديثها بالبيانات الحالية؟')) {
-                    newInvoice.status = savedInvoices[existingIndex].status;
-                    savedInvoices[existingIndex] = newInvoice;
+                if (user === 'DAFIS' && pass === 'SOLUTIONS2025') {
+                    isAdmin = true;
+                    sessionStorage.setItem('dafis_admin', 'true');
+                    updateAuthUI();
                 } else {
-                    return;
+                    alert('بيانات الدخول خاطئة!');
                 }
-            } else {
-                savedInvoices.push(newInvoice);
-            }
-
-            localStorage.setItem('dafis_history', JSON.stringify(savedInvoices));
-            alert('تم حفظ الفاتورة بنجاح في السجل!');
-            renderHistoryTable();
-        }
-
-        function toggleHistory(show) {
-            const modal = document.getElementById('historyModal');
-            if(show) {
-                renderHistoryTable();
-                modal.classList.remove('hidden');
-            } else {
-                modal.classList.add('hidden');
             }
         }
 
-        function renderHistoryTable() {
-            const tbody = document.getElementById('historyTableBody');
-            tbody.innerHTML = '';
-            
-            let totalRevenue = 0;
-
-            if(savedInvoices.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-gray-500">لا توجد فواتير محفوظة في السجل.</td></tr>`;
-            } else {
-                const reversedList = [...savedInvoices].reverse();
-                
-                reversedList.forEach(inv => {
-                    if(inv.status === 'paid') totalRevenue += inv.total;
-
-                    const tr = document.createElement('tr');
-                    tr.className = 'border-b border-gray-100 hover:bg-gray-50';
-                    tr.innerHTML = `
-                        <td class="py-3 px-3 font-bold text-gray-800">${inv.num}</td>
-                        <td class="py-3 px-3 text-gray-600">${inv.date}</td>
-                        <td class="py-3 px-3 font-medium text-gray-800">${inv.client}</td>
-                        <td class="py-3 px-3 font-bold text-right text-red-600">${inv.total.toLocaleString('fr-FR')} DA</td>
-                        <td class="py-3 px-3 text-center">
-                            <select onchange="updateInvoiceStatus(${inv.id}, this.value)" class="outline-none border-none bg-transparent cursor-pointer ${inv.status === 'paid' ? 'status-paid' : 'status-unpaid'}">
-                                <option value="unpaid" ${inv.status === 'unpaid' ? 'selected' : ''}>Non Payée</option>
-                                <option value="paid" ${inv.status === 'paid' ? 'selected' : ''}>Payée</option>
-                            </select>
-                        </td>
-                        <td class="py-3 px-3 text-center">
-                            <button onclick="deleteInvoiceFromHistory(${inv.id})" class="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded transition-colors" title="حذف من السجل">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+        function updateAuthUI() {
+            const authBtn = document.getElementById('authBtn');
+            if (authBtn) {
+                authBtn.innerHTML = isAdmin ? '<i class="fas fa-lock-open text-green-600"></i>' : '<i class="fas fa-lock text-gray-500"></i>';
             }
 
-            document.getElementById('statTotalInvoices').innerText = savedInvoices.length;
-            document.getElementById('statTotalRevenue').innerText = totalRevenue.toLocaleString('fr-FR') + ' DA';
-        }
+            // Profit Badge
+            const profitBadge = document.getElementById('profitBadgeContainer');
+            const profitDiv = document.getElementById('profitDivider');
+            if (profitBadge) profitBadge.style.display = isAdmin ? 'flex' : 'none';
+            if (profitDiv) profitDiv.style.display = isAdmin ? 'block' : 'none';
 
-        function updateInvoiceStatus(id, newStatus) {
-            const invoice = savedInvoices.find(inv => inv.id === id);
-            if(invoice) {
-                invoice.status = newStatus;
-                localStorage.setItem('dafis_history', JSON.stringify(savedInvoices));
-                renderHistoryTable();
-            }
-        }
+            // Catalog UI
+            const purchContainer = document.getElementById('newPurchasePriceContainer');
+            if (purchContainer) purchContainer.style.display = isAdmin ? 'block' : 'none';
+            const sortPurchBtn = document.getElementById('sortPurchaseBtn');
+            if (sortPurchBtn) sortPurchBtn.style.display = isAdmin ? 'flex' : 'none';
+            const catThPurch = document.getElementById('catThPurch');
+            if (catThPurch) catThPurch.style.display = isAdmin ? 'table-cell' : 'none';
+            const catThProf = document.getElementById('catThProf');
+            if (catThProf) catThProf.style.display = isAdmin ? 'table-cell' : 'none';
 
-        function deleteInvoiceFromHistory(id) {
-            if(confirm('هل أنت متأكد من حذف هذه الفاتورة من السجل نهائياً؟')) {
-                savedInvoices = savedInvoices.filter(inv => inv.id !== id);
-                localStorage.setItem('dafis_history', JSON.stringify(savedInvoices));
-                renderHistoryTable();
-                autoIncrementInvoiceNum();
-            }
-        }
-
-        function toggleCatalog(show) {
-            const modal = document.getElementById('catalogModal');
-            if(show) {
-                modal.classList.remove('hidden');
-                cancelEdit();
-            } else {
-                modal.classList.add('hidden');
-            }
-        }
-
-        function saveCatalog() {
-            localStorage.setItem('dafis_catalog', JSON.stringify(catalogItems));
-        }
-
-        function sortCatalog(column) {
-            if (currentSort.column === column) {
-                currentSort.asc = !currentSort.asc;
-            } else {
-                currentSort.column = column;
-                currentSort.asc = true;
-            }
-
-            catalogItems.sort((a, b) => {
-                let valA = a[column];
-                let valB = b[column];
-                
-                if (typeof valA === 'string') valA = valA.toLowerCase();
-                if (typeof valB === 'string') valB = valB.toLowerCase();
-
-                if (valA < valB) return currentSort.asc ? -1 : 1;
-                if (valA > valB) return currentSort.asc ? 1 : -1;
-                return 0;
-            });
-
-            const iconName = document.getElementById('sortIconName');
-            const iconPrice = document.getElementById('sortIconPrice');
-            
-            iconName.className = column === 'name' ? (currentSort.asc ? 'fas fa-sort-up ml-1 text-blue-600' : 'fas fa-sort-down ml-1 text-blue-600') : 'fas fa-sort ml-1 text-gray-400';
-            iconPrice.className = column === 'price' ? (currentSort.asc ? 'fas fa-sort-up ml-1 text-blue-600' : 'fas fa-sort-down ml-1 text-blue-600') : 'fas fa-sort ml-1 text-gray-400';
-
-            renderCatalog();
-        }
-
-        function renderCatalog() {
-            const tbody = document.getElementById('catalogTableBody');
-            tbody.innerHTML = '';
-            
-            if(catalogItems.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500 text-sm">القاعدة فارغة حالياً.</td></tr>`;
-            } else {
-                catalogItems.forEach(item => {
-                    const tr = document.createElement('tr');
-                    tr.className = 'border-b border-gray-100 hover:bg-gray-50 transition-colors';
-                    tr.innerHTML = `
-                        <td class="py-2 px-3 md:px-4 font-medium text-gray-800 whitespace-nowrap md:whitespace-normal">${item.name}</td>
-                        <td class="py-2 px-3 md:px-4 font-bold text-gray-600 whitespace-nowrap">${item.price.toLocaleString('fr-FR')}</td>
-                        <td class="py-2 px-2 md:px-4 text-center flex justify-center gap-1">
-                            <button onclick="insertFromCatalog(${item.id})" class="text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 p-1.5 md:p-2 rounded-md transition-colors" title="إدراج في الفاتورة">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                            <button onclick="editCatalogItem(${item.id})" class="text-blue-500 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 p-1.5 md:p-2 rounded-md transition-colors" title="تعديل السلعة">
-                                <i class="fas fa-pen"></i>
-                            </button>
-                            <button onclick="deleteFromCatalog(${item.id})" class="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-1.5 md:p-2 rounded-md transition-colors" title="حذف من القاعدة">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }
-        }
-
-        function editCatalogItem(id) {
-            const item = catalogItems.find(i => i.id === id);
-            if(item) {
-                document.getElementById('newCatName').value = item.name;
-                document.getElementById('newCatPrice').value = item.price;
-                editingCatId = id;
-                
-                document.getElementById('formTitle').innerText = 'تعديل السلعة الحالية:';
-                const btnSave = document.getElementById('btnSaveCatalog');
-                btnSave.innerText = 'تحديث';
-                btnSave.classList.replace('bg-blue-600', 'bg-emerald-600');
-                btnSave.classList.replace('hover:bg-blue-700', 'hover:bg-emerald-700');
-                
-                document.getElementById('btnCancelEdit').classList.remove('hidden');
-                document.getElementById('newCatName').focus();
-            }
-        }
-
-        function cancelEdit() {
-            editingCatId = null;
-            document.getElementById('newCatName').value = '';
-            document.getElementById('newCatPrice').value = '';
-            
-            document.getElementById('formTitle').innerText = 'إضافة سلعة:';
-            const btnSave = document.getElementById('btnSaveCatalog');
-            btnSave.innerText = 'حفظ';
-            btnSave.classList.replace('bg-emerald-600', 'bg-blue-600');
-            btnSave.classList.replace('hover:bg-emerald-700', 'hover:bg-blue-700');
-            
-            document.getElementById('btnCancelEdit').classList.add('hidden');
-        }
-
-        function saveOrUpdateCatalog() {
-            const nameInput = document.getElementById('newCatName');
-            const priceInput = document.getElementById('newCatPrice');
-            const name = nameInput.value.trim();
-            const price = parseFloat(priceInput.value) || 0;
-
-            if(!name) return;
-
-            if (editingCatId) {
-                const item = catalogItems.find(i => i.id === editingCatId);
-                if(item) {
-                    item.name = name;
-                    item.price = price;
-                }
-                cancelEdit();
-            } else {
-                catalogItems.push({ id: Date.now(), name, price });
-                nameInput.value = '';
-                priceInput.value = '';
-            }
-
-            if (currentSort.column) {
-                sortCatalog(currentSort.column); 
-            } else {
-                saveCatalog();
-                renderCatalog();
-            }
-        }
-
-        function deleteFromCatalog(id) {
-            if(confirm('هل أنت متأكد من حذف هذه السلعة من القاعدة؟')) {
-                catalogItems = catalogItems.filter(item => item.id !== id);
-                saveCatalog();
-                renderCatalog();
-                if(editingCatId === id) cancelEdit();
-            }
-        }
-
-        function insertFromCatalog(id) {
-            const item = catalogItems.find(i => i.id === id);
-            if(item) {
-                addInvoiceItem(item.name, 1, item.price);
-            }
-        }
-
-        function downloadPDF() {
-            const element = document.getElementById('invoice-container');
-            const originalWidth = element.style.width;
-            const originalMaxWidth = element.style.maxWidth;
-            
-            element.style.width = '210mm';
-            element.style.maxWidth = '210mm';
-            element.style.height = '297mm';
-            
-            const num = document.getElementById('invoiceNum').value.replace(/\//g, '-');
-            const clientName = document.getElementById('clientName').value.trim() || 'Client';
-            
-            const opt = {
-                margin: 0,
-                filename: `Facture_DAFIS_${num}_${clientName}.pdf`,
-                image: { type: 'jpeg', quality: 1 },
-                html2canvas: { scale: 2, useCORS: true, windowWidth: 1024, scrollY: 0 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak: { mode: 'avoid-all' } 
-            };
-
-            html2pdf().set(opt).from(element).save().then(() => {
-                element.style.width = originalWidth;
-                element.style.maxWidth = originalMaxWidth;
-                element.style.height = 'auto';
-            });
-        }
-    </script>
-</body>
-</html>
+            // Re-
